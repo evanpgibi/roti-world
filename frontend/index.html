@@ -63,6 +63,8 @@
               <button class="text-button" id="clearBtn" type="button">Remove image</button>
             </div>
 
+            <div id="errorBanner" class="error-banner hidden" role="alert" aria-live="assertive"></div>
+
             <div class="cta-row">
               <button id="analyzeBtn" class="primary-button" type="button" disabled>Analyze My Chapati</button>
             </div>
@@ -125,15 +127,6 @@
                 <div class="outline-label">Detected chapati outline</div>
                 <div class="outline-image">
                   <img id="resultPreview" src="" alt="Detected chapati outline" />
-                  <svg class="outline-svg" viewBox="0 0 300 220" aria-hidden="true">
-                    <path
-                      d="M40 120 C 60 55, 125 28, 165 28 C 210 30, 250 60, 270 120 C 258 172, 205 198, 150 200 C 95 198, 44 176, 40 120 Z"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.95)"
-                      stroke-width="4"
-                      stroke-linecap="round"
-                    />
-                  </svg>
                 </div>
               </div>
             </div>

@@ -55,6 +55,18 @@ const resultScore = document.getElementById("resultScore");
 const resultMessage = document.getElementById("resultMessage");
 const runnerUpList = document.getElementById("runnerUpList");
 const tryAnotherBtn = document.getElementById("tryAnotherBtn");
+const errorBanner = document.getElementById("errorBanner");
+
+function clearError() {
+  errorBanner.textContent = "";
+  errorBanner.classList.add("hidden");
+}
+
+function showError(message) {
+  errorBanner.textContent = message;
+  errorBanner.classList.remove("hidden");
+  resultSection.classList.add("hidden");
+}
 
 function setButtonState() {
   analyzeBtn.disabled = !state.imageUrl || state.isAnalyzing;
@@ -79,6 +91,7 @@ function clearPreview() {
   previewImg.src = "";
   previewPanel.classList.add("hidden");
   fileInput.value = "";
+  clearError();
   setButtonState();
 }
 
@@ -228,6 +241,8 @@ async function runRealAnalysis() {
   analyzeBtn.disabled = true;
 
   try {
+    clearError();
+
     const analyzeResult = await analyzeChapati(state.imageFile);
     const overlayImage = analyzeResult.overlay_image_b64
       ? `data:image/png;base64,${analyzeResult.overlay_image_b64}`
@@ -237,15 +252,15 @@ async function runRealAnalysis() {
 
     const contour = analyzeResult.detected_contour || [];
     if (!contour.length) {
-      renderResult();
-      return;
+      throw new Error("No contour was detected in the uploaded chapati image.");
     }
 
     const matchResult = await matchContour(contour);
     renderResultFromApi(matchResult, overlayImage);
   } catch (error) {
-    console.warn("API connection failed, using mock fallback:", error);
-    renderResult();
+    const message = error?.message || "Something went wrong while analyzing your chapati.";
+    console.error("Chapati analysis failed:", error);
+    showError(message);
   } finally {
     state.isAnalyzing = false;
     analyzeBtn.textContent = "Analyze My Chapati";
@@ -268,6 +283,7 @@ fileInput.addEventListener("change", (event) => handleFiles(event.target.files))
 analyzeBtn.addEventListener("click", runRealAnalysis);
 tryAnotherBtn.addEventListener("click", () => {
   resultSection.classList.add("hidden");
+  clearError();
   clearPreview();
   window.scrollTo({
     top: 0,
