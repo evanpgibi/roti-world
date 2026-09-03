@@ -70,9 +70,6 @@ def _load_geojson(geojson_path: Path, strategy: str, scale_method: str) -> list[
 
     print(f"[GeoJSON] Loading {geojson_path} ...")
     gdf = gpd.read_file(str(geojson_path))
-    if gdf.crs is None:
-        gdf = gdf.set_crs("EPSG:4326")
-    gdf = gdf.to_crs("EPSG:3857")
     print(f"[GeoJSON] Loaded {len(gdf)} features. Columns: {list(gdf.columns)}")
 
     entries: list[CountryEntry] = []
@@ -144,21 +141,20 @@ def _geometry_to_contour(geom, strategy: str) -> np.ndarray:
         poly = max(polygons, key=lambda p: p.area)
         coords = np.array(poly.exterior.coords, dtype=np.float32)
     elif strategy == "all_merged":
-        # Keep a valid contour without introducing artificial bridges between disconnected
-        # polygon components. For the first implementation, the largest polygon is the stable
-        # representative of the country's main outline.
-        poly = max(polygons, key=lambda p: p.area)
-        coords = np.array(poly.exterior.coords, dtype=np.float32)
+        # Concatenate all exterior rings with a bridge point between them
+        parts = []
+        for p in polygons:
+            c = np.array(p.exterior.coords, dtype=np.float32)
+            parts.append(c)
+        coords = np.vstack(parts)
     else:
         raise ValueError(f"Unknown strategy: '{strategy}'")
 
     if len(coords) < 3:
         raise ValueError("Too few coordinates after extraction.")
 
-    # GeoJSON longitude/latitude are in a geographic CRS: Y increases northward.
-    # Image contours use image space: Y increases downward. Convert to a common planar
-    # convention before matching and then mirror the Y-axis to match the chapati contour.
-    coords[:, 1] = -coords[:, 1]
+    # OpenCV contour: shape (N, 1, 2), int32
+    # We keep as float for normalization; caller converts when needed
     return coords[:, np.newaxis, :].astype(np.float32)
 
 

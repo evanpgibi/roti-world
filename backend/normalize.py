@@ -124,24 +124,32 @@ def rotate_contour(points: np.ndarray, angle_rad: float) -> np.ndarray:
     return rot.astype(np.float32)
 
 
-def contour_distance(a: np.ndarray, b: np.ndarray, n_points: int = 256) -> float:
-    """Geometric boundary distance invariant to translation, scale, rotation, and reflection."""
-    a_pts = normalize_contour(_to_float_points(a), n_points=n_points)
-    b_pts = normalize_contour(_to_float_points(b), n_points=n_points)
-
-    a_pts = a_pts.reshape(-1, 2)
-    b_pts = b_pts.reshape(-1, 2)
+def contour_distance(a: np.ndarray, b: np.ndarray, n_points: int = 128) -> float:
+    """Robust closed-contour geometric distance with cyclic-shift and relative-rotation alignment."""
+    a_pts = normalize_contour(_to_float_points(a), n_points=n_points).reshape(-1, 2)
+    b_pts = normalize_contour(_to_float_points(b), n_points=n_points).reshape(-1, 2)
 
     best = float("inf")
-    for step in range(32):
-        angle = (2.0 * math.pi * step) / 32.0
-        a_rot = rotate_contour(a_pts, angle)
-        b_rot = rotate_contour(b_pts, angle)
-        best = min(best, float(np.mean(np.linalg.norm(a_rot - b_rot, axis=1))))
+    candidates = [b_pts, np.column_stack([b_pts[:, 0], -b_pts[:, 1]])]
 
-        b_reflected = np.column_stack([b_pts[:, 0], -b_pts[:, 1]])
-        b_ref_rot = rotate_contour(b_reflected, angle)
-        best = min(best, float(np.mean(np.linalg.norm(a_rot - b_ref_rot, axis=1))))
+    for candidate in candidates:
+        for shift in range(len(candidate)):
+            shifted = np.roll(candidate, -shift, axis=0)
+            a_centered = a_pts - a_pts.mean(axis=0)
+            b_centered = shifted - shifted.mean(axis=0)
+
+            h = a_centered.T @ b_centered
+            u, _, vt = np.linalg.svd(h)
+            r = vt.T @ u.T
+            if np.linalg.det(r) < 0:
+                vt[-1, :] *= -1.0
+                r = vt.T @ u.T
+
+            aligned = b_centered @ r.T
+            diff = a_centered - aligned
+            dist = float(np.mean(np.linalg.norm(diff, axis=1)))
+            if dist < best:
+                best = dist
 
     return float(best)
 
