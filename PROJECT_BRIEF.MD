@@ -17,25 +17,31 @@ Photograph a misshapen chapati → the app tells you which country its outline m
 ### Online pipeline (per request)
 Upload → `chapati.py` (grayscale/blur/threshold/morphology/findContours) → normalize → `matcher.py` (cv2.matchShapes × 195 countries) → score + leaderboard → FastAPI response
 
-## Backend File Map
+## Project Structure
 ```
-backend/
-├── main.py                  FastAPI app (endpoints: /api/analyze, /api/match, /api/share)
-├── config.py                Settings loader (reads config.yaml)
-├── config.yaml              All tunable parameters (single source of truth)
-├── chapati.py               Image processing pipeline (contour detection)
-├── normalize.py             Scale-invariant normalization (used by both pipelines)
-├── matcher.py               Shape comparison engine (cv2.matchShapes + scoring)
-├── share.py                 Shareable card generator (Pillow)
-├── build_country_cache.py   Offline cache builder script
-├── requirements.txt         Python dependencies
-├── data/
-│   ├── all_primary_countries.geojson  WRI boundary data (CC0-1.0)
-│   └── result_copy.json               Playful copy templates
-├── cache/
-│   └── country_cache.pkl              Built by build_country_cache.py
-└── svgs/
-    └── intl_wintri.svg (etc.)         WRI whole-world SVGs (fallback source)
+.
+├── API_SCHEMA.md            Complete API documentation & schema for frontend developers
+├── PROJECT_BRIEF.MD         Project overview & architectural brief
+├── RotiWorld_PRD.md         Original PRD
+├── README.md                Submission documentation
+├── index.html               Frontend entrypoint
+└── backend/
+    ├── main.py                  FastAPI app (endpoints: /api/analyze, /api/match, /api/share)
+    ├── config.py                Settings loader (reads config.yaml)
+    ├── config.yaml              All tunable parameters (single source of truth)
+    ├── chapati.py               Image processing pipeline (contour detection)
+    ├── normalize.py             Scale-invariant normalization (used by both pipelines)
+    ├── matcher.py               Shape comparison engine (cv2.matchShapes + scoring)
+    ├── share.py                 Shareable card generator (Pillow)
+    ├── build_country_cache.py   Offline cache builder script
+    ├── requirements.txt         Python dependencies
+    ├── data/
+    │   ├── all_primary_countries.geojson  WRI boundary data (CC0-1.0)
+    │   └── result_copy.json               Playful copy templates
+    ├── cache/
+    │   └── country_cache.pkl              Built by build_country_cache.py (193 countries)
+    └── svgs/
+        └── intl_wintri.svg (etc.)         WRI whole-world SVGs (fallback source)
 ```
 
 ## Tech Stack
@@ -75,5 +81,7 @@ cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - [x] build_country_cache.py — offline cache builder
 - [x] main.py — FastAPI app
 - [x] GeoJSON downloaded
-- [ ] Cache built (run build_country_cache.py)
+- [x] Cache built (193 countries cached in `backend/cache/country_cache.pkl`)
+- [x] API schema documented in `API_SCHEMA.md` for frontend development
 - [ ] Frontend (index.html) — to build
+
