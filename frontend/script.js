@@ -1,5 +1,8 @@
+const API_BASE_URL = "http://localhost:8000";
+
 const state = {
   imageUrl: "",
+  imageFile: null,
   isAnalyzing: false,
 };
 
@@ -13,6 +16,28 @@ const countryProfiles = [
   { name: "Mexico", flag: "🇲🇽", baseScore: 80 },
   { name: "France", flag: "🇫🇷", baseScore: 79 },
 ];
+
+const countryFlags = {
+  Italy: "🇮🇹",
+  Greece: "🇬🇷",
+  Brazil: "🇧🇷",
+  India: "🇮🇳",
+  Japan: "🇯🇵",
+  Argentina: "🇦🇷",
+  Mexico: "🇲🇽",
+  France: "🇫🇷",
+  Madagascar: "🇲🇬",
+  "Sri Lanka": "🇱🇰",
+  "Sierra Leone": "🇸🇱",
+  Cyprus: "🇨🇾",
+  Uruguay: "🇺🇾",
+  "United States": "🇺🇸",
+  Germany: "🇩🇪",
+  Spain: "🇪🇸",
+  Portugal: "🇵🇹",
+  "South Korea": "🇰🇷",
+  "United Kingdom": "🇬🇧",
+};
 
 const fileInput = document.getElementById("fileInput");
 const dropzone = document.getElementById("dropzone");
@@ -37,6 +62,7 @@ function setButtonState() {
 
 function updatePreview(file) {
   const objectUrl = URL.createObjectURL(file);
+  state.imageFile = file;
   state.imageUrl = objectUrl;
   previewImg.src = objectUrl;
   previewPanel.classList.remove("hidden");
@@ -44,10 +70,11 @@ function updatePreview(file) {
 }
 
 function clearPreview() {
-  if (state.imageUrl) {
+  if (state.imageUrl && state.imageUrl.startsWith("blob:")) {
     URL.revokeObjectURL(state.imageUrl);
   }
 
+  state.imageFile = null;
   state.imageUrl = "";
   previewImg.src = "";
   previewPanel.classList.add("hidden");
@@ -61,7 +88,7 @@ function handleFiles(files) {
     return;
   }
 
-  if (state.imageUrl) {
+  if (state.imageUrl && state.imageUrl.startsWith("blob:")) {
     URL.revokeObjectURL(state.imageUrl);
   }
 
@@ -93,20 +120,47 @@ function calculateProfile(seed) {
     .sort((a, b) => b.score - a.score);
 }
 
+function getCountryFlag(countryName) {
+  return countryFlags[countryName] || "🌍";
+}
+
 function renderRunnerUps(items) {
   runnerUpList.innerHTML = items
     .map(
       (country) => `
         <li>
           <div class="runner-left">
-            <span class="chip">${country.flag}</span>
-            <span>${country.name}</span>
+            <span class="chip">${country.flag || getCountryFlag(country.name || country.country)}</span>
+            <span>${country.name || country.country}</span>
           </div>
           <span class="runner-score">${Math.round(country.score)}%</span>
         </li>
       `,
     )
     .join("");
+}
+
+function renderResultFromApi(matchData, previewImageSrc) {
+  const winner = matchData.best_match;
+  const runnerUps = (matchData.leaderboard || []).slice(1, 4).map((country) => ({
+    ...country,
+    flag: getCountryFlag(country.country),
+    name: country.country,
+    score: country.score,
+  }));
+
+  resultFlag.textContent = getCountryFlag(winner.country);
+  resultCountry.textContent = winner.country;
+  resultScore.textContent = `${Math.round(winner.score)}%`;
+  resultMessage.textContent = matchData.playful_copy || `Your chapati is giving ${winner.country}.`;
+  resultPreview.src = previewImageSrc || state.imageUrl || "";
+
+  renderRunnerUps(runnerUps);
+  resultSection.classList.remove("hidden");
+  window.scrollTo({
+    top: resultSection.offsetTop - 24,
+    behavior: "smooth",
+  });
 }
 
 function renderResult() {
@@ -128,8 +182,44 @@ function renderResult() {
   });
 }
 
-function simulateAnalysis() {
-  if (!state.imageUrl || state.isAnalyzing) {
+async function analyzeChapati(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => ({}));
+    const message = errorPayload?.detail?.message || "Could not analyze this chapati.";
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+async function matchContour(contour) {
+  const response = await fetch(`${API_BASE_URL}/api/match`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ contour }),
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => ({}));
+    const message = errorPayload?.detail?.message || "Could not match this chapati.";
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+async function runRealAnalysis() {
+  if (!state.imageFile || state.isAnalyzing) {
     return;
   }
 
@@ -137,12 +227,30 @@ function simulateAnalysis() {
   analyzeBtn.textContent = "Scanning the dough...";
   analyzeBtn.disabled = true;
 
-  window.setTimeout(() => {
+  try {
+    const analyzeResult = await analyzeChapati(state.imageFile);
+    const overlayImage = analyzeResult.overlay_image_b64
+      ? `data:image/png;base64,${analyzeResult.overlay_image_b64}`
+      : state.imageUrl;
+
+    previewImg.src = overlayImage;
+
+    const contour = analyzeResult.detected_contour || [];
+    if (!contour.length) {
+      renderResult();
+      return;
+    }
+
+    const matchResult = await matchContour(contour);
+    renderResultFromApi(matchResult, overlayImage);
+  } catch (error) {
+    console.warn("API connection failed, using mock fallback:", error);
     renderResult();
+  } finally {
     state.isAnalyzing = false;
     analyzeBtn.textContent = "Analyze My Chapati";
     setButtonState();
-  }, 900);
+  }
 }
 
 browseBtn.addEventListener("click", (event) => {
@@ -157,7 +265,7 @@ cameraBtn.addEventListener("click", (event) => {
 
 clearBtn.addEventListener("click", clearPreview);
 fileInput.addEventListener("change", (event) => handleFiles(event.target.files));
-analyzeBtn.addEventListener("click", simulateAnalysis);
+analyzeBtn.addEventListener("click", runRealAnalysis);
 tryAnotherBtn.addEventListener("click", () => {
   resultSection.classList.add("hidden");
   clearPreview();
