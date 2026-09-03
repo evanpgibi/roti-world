@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 from config import Settings, load_settings
-from normalize import normalize_contour, list_to_contour, contour_to_list
+from normalize import normalize_contour, list_to_contour, contour_to_list, contour_distance
 
 
 # -------------------------------------------------------------------
@@ -100,16 +100,14 @@ _CV_METHODS = {
 }
 
 
-def _distance_to_score(distance: float, formula: str, k: float) -> float:
-    """
-    Convert a matchShapes distance (0 = identical, unbounded above) to a
-    human-friendly similarity percentage (0–100).
-    """
+def _distance_to_score(distance: float, formula: str, k: float, best_distance: float = 0.0, worst_distance: float = 1.0) -> float:
+    """Convert a geometry distance to a relative similarity score (0–100)."""
     if formula == "exponential":
-        return 100.0 * math.exp(-k * distance)
+        return max(0.0, min(100.0, 100.0 * math.exp(-k * distance)))
     elif formula == "linear_clamped":
-        # 0 distance → 100%, distance ≥ 1/k → 0%
-        return max(0.0, 100.0 * (1.0 - k * distance))
+        span = max(1e-6, worst_distance - best_distance)
+        score = 100.0 * (1.0 - ((distance - best_distance) / span))
+        return max(0.0, min(100.0, score))
     else:
         raise ValueError(f"Unknown score_formula: '{formula}'")
 
@@ -143,32 +141,50 @@ def _pick_copy(score: float, country: str, templates_path: Path) -> str:
 # -------------------------------------------------------------------
 # Core matching function
 # -------------------------------------------------------------------
+def debug_match_chapati(
+    contour_raw_pts: list[list[float]],
+    settings: Optional[Settings] = None,
+) -> dict:
+    """Return detailed geometric matching diagnostics without changing the public API."""
+    if settings is None:
+        settings = load_settings()
+
+    nm = settings.normalization
+    try:
+        raw = np.array(contour_raw_pts, dtype=np.float32).reshape(-1, 2)
+        chapati_norm = normalize_contour(raw, nm.scale_norm_method)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+    countries = get_country_cache(settings)
+    ranked = []
+    for entry in countries:
+        try:
+            country_contour = list_to_contour(entry["contour_points"])
+            dist = contour_distance(chapati_norm, country_contour)
+            ranked.append({"country": entry["name"], "iso_a3": entry["iso_a3"], "distance": float(dist)})
+        except Exception:
+            continue
+
+    ranked.sort(key=lambda item: item["distance"])
+    return {
+        "chapati_normalized": contour_to_list(chapati_norm),
+        "leaderboard": ranked[:10],
+        "best": ranked[0] if ranked else None,
+    }
+
+
 def match_chapati(
     contour_raw_pts: list[list[float]],
     settings: Optional[Settings] = None,
 ) -> MatchResult | MatchError:
-    """
-    Compare a chapati contour (from the /api/analyze confirm step) against
-    every cached country contour and return the best match + leaderboard.
-
-    Parameters
-    ----------
-    contour_raw_pts : list[[x, y]]
-        Raw contour points as returned by analyze_image (un-normalized).
-    settings : Settings, optional
-        Loaded config.
-
-    Returns
-    -------
-    MatchResult on success, MatchError on failure.
-    """
+    """Compare a chapati contour against cached country contours with a geometry-first matcher."""
     if settings is None:
         settings = load_settings()
 
     mc = settings.matching
     nm = settings.normalization
 
-    # --- Load cache ---
     try:
         countries = get_country_cache(settings)
     except RuntimeError as e:
@@ -177,9 +193,8 @@ def match_chapati(
     if not countries:
         return MatchError(code="CACHE_EMPTY", message="Country cache is empty. Rebuild the cache.")
 
-    # --- Normalize chapati contour ---
     try:
-        raw = np.array(contour_raw_pts, dtype=np.float32).reshape(-1, 1, 2)
+        raw = np.array(contour_raw_pts, dtype=np.float32).reshape(-1, 2)
         chapati_norm = normalize_contour(raw, nm.scale_norm_method)
     except Exception as e:
         return MatchError(
@@ -187,21 +202,16 @@ def match_chapati(
             message=f"Failed to normalize chapati contour: {e}",
         )
 
-    # --- Resolve matchShapes method ---
-    cv_method = _CV_METHODS.get(mc.primary_method, cv2.CONTOURS_MATCH_I1)
     formula = mc.score_formula
     k = mc.score_k
-
-    # --- Compare against every country ---
-    results: list[tuple[float, dict]] = []  # (distance, country_entry)
-
+    results: list[tuple[float, dict]] = []
     for entry in countries:
         try:
             country_contour = list_to_contour(entry["contour_points"])
-            dist = cv2.matchShapes(chapati_norm, country_contour, cv_method, 0.0)
+            dist = contour_distance(chapati_norm, country_contour)
             results.append((dist, entry))
         except Exception:
-            continue  # skip degenerate entries silently
+            continue
 
     if not results:
         return MatchError(
@@ -209,15 +219,15 @@ def match_chapati(
             message="Shape comparison failed for all countries. Check the cache.",
         )
 
-    # --- Sort ascending by distance (best match first) ---
     results.sort(key=lambda t: t[0])
-
     leaderboard_size = min(mc.leaderboard_size, len(results))
     top_results = results[:leaderboard_size]
 
+    best_distance = top_results[0][0]
+    worst_distance = top_results[-1][0]
     leaderboard: list[CountryMatch] = []
     for dist, entry in top_results:
-        score = _distance_to_score(dist, formula, k)
+        score = _distance_to_score(dist, formula, k, best_distance, worst_distance)
         leaderboard.append(
             CountryMatch(
                 country=entry["name"],
@@ -231,7 +241,6 @@ def match_chapati(
     best_entry = top_results[0][1]
     country_norm = list_to_contour(best_entry["contour_points"])
 
-    # --- Pick copy template ---
     copy_path = settings.resolve(settings.copy.templates_path)
     playful_copy = _pick_copy(best.score, best.country, copy_path)
 

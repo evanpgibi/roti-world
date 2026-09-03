@@ -20,7 +20,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from config import Settings, load_settings
 from normalize import normalize_contour, contour_to_list
@@ -177,7 +177,9 @@ def _decode_image(image_bytes: bytes) -> np.ndarray | None:
         pass
 
     try:
-        pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        pil_img = Image.open(io.BytesIO(image_bytes))
+        pil_img = ImageOps.exif_transpose(pil_img)
+        pil_img = pil_img.convert("RGB")
         arr = np.array(pil_img, dtype=np.uint8)
         bgr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
         return bgr
