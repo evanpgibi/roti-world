@@ -116,7 +116,7 @@ def generate_share_card(
 
     # --- Header bar ---
     draw.rectangle([0, 0, CARD_W, 60], fill=(25, 25, 40))
-    draw.text((24, 16), "🌍  CHAPATI WORLD", font=font_title, fill=ACCENT)
+    draw.text((24, 16), "WORLD  CHAPATI", font=font_title, fill=ACCENT)
 
     # --- Tagline ---
     draw.text(
@@ -160,9 +160,9 @@ def generate_share_card(
     lb_y = panel_y + panel_h + 20
     draw.text((24, lb_y), "Top matches:", font=font_small, fill=TEXT_DIM)
     lb_y += 20
-    medals = ["🥇", "🥈", "🥉", "  4.", "  5."]
+    medals = ["#1", "#2", "#3", "#4", "#5"]
     for i, entry in enumerate(leaderboard[:5]):
-        medal = medals[i] if i < len(medals) else f"  {i+1}."
+        medal = medals[i] if i < len(medals) else f"#{i+1}"
         line = f"{medal}  {entry['country']}  —  {entry['score']:.1f}%"
         color = GOLD if i == 0 else TEXT_MAIN
         draw.text((24, lb_y + i * 20), line, font=font_small, fill=color)

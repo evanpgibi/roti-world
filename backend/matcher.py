@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 from config import Settings, load_settings
-from normalize import normalize_contour, list_to_contour, contour_to_list
+from normalize import normalize_contour, list_to_contour, contour_to_list, contour_distance
 
 
 # -------------------------------------------------------------------
@@ -100,18 +100,21 @@ _CV_METHODS = {
 }
 
 
-def _distance_to_score(distance: float, formula: str, k: float) -> float:
-    """
-    Convert a matchShapes distance (0 = identical, unbounded above) to a
-    human-friendly similarity percentage (0–100).
-    """
+def _distance_to_score(distance: float, formula: str, k: float, rank: int = 1, total: int = 1) -> float:
+    """Turn a geometric distance into a meaningful similarity score."""
+    if formula == "relative_rank":
+        if total <= 1:
+            return 100.0
+        percentile = (rank - 1) / max(1, total - 1)
+        return max(0.0, 100.0 * (1.0 - percentile))
+    if formula == "distance_clamped":
+        threshold = max(1e-6, float(k))
+        return max(0.0, 100.0 * (1.0 - min(distance / threshold, 1.0)))
     if formula == "exponential":
         return 100.0 * math.exp(-k * distance)
-    elif formula == "linear_clamped":
-        # 0 distance → 100%, distance ≥ 1/k → 0%
+    if formula == "linear_clamped":
         return max(0.0, 100.0 * (1.0 - k * distance))
-    else:
-        raise ValueError(f"Unknown score_formula: '{formula}'")
+    raise ValueError(f"Unknown score_formula: '{formula}'")
 
 
 # -------------------------------------------------------------------
@@ -187,21 +190,20 @@ def match_chapati(
             message=f"Failed to normalize chapati contour: {e}",
         )
 
-    # --- Resolve matchShapes method ---
+    # --- Resolve matchShapes method (secondary diagnostic only) ---
     cv_method = _CV_METHODS.get(mc.primary_method, cv2.CONTOURS_MATCH_I1)
     formula = mc.score_formula
     k = mc.score_k
 
-    # --- Compare against every country ---
-    results: list[tuple[float, dict]] = []  # (distance, country_entry)
-
+    # --- Compare against every country with the geometry-first metric ---
+    results: list[tuple[float, dict]] = []
     for entry in countries:
         try:
             country_contour = list_to_contour(entry["contour_points"])
-            dist = cv2.matchShapes(chapati_norm, country_contour, cv_method, 0.0)
+            dist = contour_distance(chapati_norm, country_contour)
             results.append((dist, entry))
         except Exception:
-            continue  # skip degenerate entries silently
+            continue
 
     if not results:
         return MatchError(
@@ -209,15 +211,13 @@ def match_chapati(
             message="Shape comparison failed for all countries. Check the cache.",
         )
 
-    # --- Sort ascending by distance (best match first) ---
     results.sort(key=lambda t: t[0])
-
     leaderboard_size = min(mc.leaderboard_size, len(results))
     top_results = results[:leaderboard_size]
 
     leaderboard: list[CountryMatch] = []
-    for dist, entry in top_results:
-        score = _distance_to_score(dist, formula, k)
+    for rank, (dist, entry) in enumerate(top_results, start=1):
+        score = _distance_to_score(dist, formula, k, rank, len(results))
         leaderboard.append(
             CountryMatch(
                 country=entry["name"],

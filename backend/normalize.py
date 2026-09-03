@@ -125,7 +125,7 @@ def rotate_contour(points: np.ndarray, angle_rad: float) -> np.ndarray:
 
 
 def contour_distance(a: np.ndarray, b: np.ndarray, n_points: int = 128) -> float:
-    """Robust closed-contour geometric distance with cyclic-shift and relative-rotation alignment."""
+    """Robust closed-contour geometric distance with cyclic shifts, relative rotation, and optional reflection."""
     a_pts = normalize_contour(_to_float_points(a), n_points=n_points).reshape(-1, 2)
     b_pts = normalize_contour(_to_float_points(b), n_points=n_points).reshape(-1, 2)
 

@@ -5,9 +5,9 @@ Loads config.yaml and exposes a typed Settings dataclass.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_type_hints
 
 import yaml
 
@@ -70,17 +70,16 @@ def _load_dataclass(cls, data: dict):
     """Recursively instantiate nested dataclasses from a dict."""
     if not isinstance(data, dict):
         return data
-    fields_map = {f.name: f for f in cls.__dataclass_fields__.values()}
+    hints = get_type_hints(cls)
     kwargs = {}
     for key, val in data.items():
-        if key in fields_map:
-            f = fields_map[key]
-            # Check if the field type is itself a dataclass
-            field_type = f.type if isinstance(f.type, type) else None
-            if field_type and hasattr(field_type, "__dataclass_fields__"):
-                kwargs[key] = _load_dataclass(field_type, val)
-            else:
-                kwargs[key] = val
+        if key not in cls.__dataclass_fields__:
+            continue
+        field_type = hints.get(key)
+        if field_type is not None and hasattr(field_type, "__dataclass_fields__"):
+            kwargs[key] = _load_dataclass(field_type, val)
+        else:
+            kwargs[key] = val
     return cls(**kwargs)
 
 

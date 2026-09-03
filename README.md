@@ -1,102 +1,106 @@
-<img width="1280" height="640" alt="git (1)" src="https://github.com/user-attachments/assets/8920b256-2ba8-4988-b824-5351134eb4bd" />
+# RotiWorld / Chapati World
 
+A deliberately useless computer-vision app that photographs a misshapen chapati and tries to tell you which country its outline most resembles.
 
+## Live demo
+- Backend API: https://roti-world.onrender.com
+- Health check: https://roti-world.onrender.com/api/health
 
-# CHAPATI WORLD 🎯
+## Team
+- Team: TrustMeBro
+- Evan Paul Gibi — Govt Model Engineering College
+- Aaron S Christo — Govt Model Engineering College
+- Event: TinkerHub Useless Projects 3.0
 
+## What the project does
+1. Upload a chapati image.
+2. Detect the outer contour with OpenCV.
+3. Normalize and compare the contour against cached country outlines.
+4. Return the closest country and a leaderboard of suspiciously similar nations.
 
-## Basic Details
-### Team Name: TrustMeBro
+## Architecture
 
+### Offline pipeline
+`backend/build_country_cache.py` reads the GeoJSON country data, normalizes the country contours, and writes the cache to `backend/cache/country_cache.pkl`.
 
-### Team Members
-- Member 1: Evan Paul Gibi - Govt Model Engineering College
-- Member 2: Aaron S Christo - Govt Model Engineering College
+### Online pipeline
+`backend/chapati.py` handles image decoding, thresholding, contour extraction, and overlay rendering.
+`backend/normalize.py` uses geometric normalization and contour alignment.
+`backend/matcher.py` ranks country matches and returns the leaderboard.
+`backend/share.py` renders a shareable PNG card.
 
-### Project Description
-A fun, deliberately useless computer-vision project that scans a deformed chapati and matches its outline to the country it most closely resembles using OpenCV.
+## Tech stack
+- Python 3.11+
+- FastAPI + uvicorn
+- OpenCV + NumPy
+- Pillow
+- GeoPandas + Shapely
+- PyYAML
+- HTML/CSS/JS frontend
 
-### The Problem (that doesn't exist)
-While making chapati, we may accidently make a deformed chapati. The deformed chapati comes with a grave difficulty - What country does it look like?
+## Local setup
+```bash
+cd /home/bloodhat/WebDev/useless_project_temp/backend
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python build_country_cache.py
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
 
-### The Solution (that nobody asked for)
-Trust Me Bro, we gotchu, open our website, scan your chapati and we will tell you the country that best matches your chapati's shape
+## Frontend local run
+```bash
+cd /home/bloodhat/WebDev/useless_project_temp/frontend
+python3 -m http.server 8001
+```
 
-## Technical Details
-### Technologies/Components Used
-For Software:
-- [Languages used]
-- [Frameworks used]
-- [Libraries used]
-- [Tools used]
+## Project structure
+```text
+.
+├── README.md
+├── PROJECT_BRIEF.MD
+├── backend/
+│   ├── build_country_cache.py
+│   ├── chapati.py
+│   ├── config.py
+│   ├── config.yaml
+│   ├── main.py
+│   ├── matcher.py
+│   ├── normalize.py
+│   ├── requirements.txt
+│   ├── share.py
+│   ├── cache/
+│   ├── data/
+│   └── svgs/
+├── frontend/
+│   ├── config.js
+│   ├── index.html
+│   ├── script.js
+│   ├── styles.css
+│   └── assets/
+└── backend/tests/
+```
 
-For Hardware:
-- [List main components]
-- [List specifications]
-- [List tools required]
+## Screenshots
 
-### Implementation
-For Software:
-# Installation
-[commands]
+### App landing page
+The frontend lets a user upload a chapati image and inspect the detected outline before confirmation.
 
-# Run
-[commands]
+### Result screen
+The backend returns the best country match and a leaderboard of close contenders.
 
-### Project Documentation
-For Software:
+### Share card output
+The generated share card includes the winning country, score, and top matches without missing emoji glyphs.
 
-# Screenshots (Add at least 3)
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
+## Demo notes
+- The app is intended as a playful “useless project” rather than a scientifically rigorous geographic classifier.
+- The geometry matcher is tuned for contour similarity and explicit confirmation before matching.
 
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
-
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
-
-# Diagrams
-![Workflow](Add your workflow/architecture diagram here)
-*Add caption explaining your workflow*
-
-For Hardware:
-
-# Schematic & Circuit
-![Circuit](Add your circuit diagram here)
-*Add caption explaining connections*
-
-![Schematic](Add your schematic diagram here)
-*Add caption explaining the schematic*
-
-# Build Photos
-![Components](Add photo of your components here)
-*List out all components shown*
-
-![Build](Add photos of build process here)
-*Explain the build steps*
-
-![Final](Add photo of final product here)
-*Explain the final build*
-
-### Project Demo
-# Video
-[Add your demo video link here]
-*Explain what the video demonstrates*
-
-# Additional Demos
-[Add any extra demo materials/links]
-
-## Team Contributions
-- [Name 1]: [Specific contributions]
-- [Name 2]: [Specific contributions]
-- [Name 3]: [Specific contributions]
+## Team contributions
+- Evan Paul Gibi — backend matching, country cache pipeline, deployment and project integration
+- Aaron S Christo — frontend flow, UI polish, and project presentation
 
 ---
-Made with ❤️ at TinkerHub Useless Projects 
-
-![Static Badge](https://img.shields.io/badge/TinkerHub-24?color=%23000000&link=https%3A%2F%2Fwww.tinkerhub.org%2F)
-![Static Badge](https://img.shields.io/badge/UselessProjects--26-26?link=https%3A%2F%2Ftinkerhub.org%2Fevents%2F1M8ORET9A1%2Fuseless-projects-3.0)
-
+Made with ❤️ at TinkerHub Useless Projects 3.0.
 
 

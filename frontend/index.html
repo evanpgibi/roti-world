@@ -65,6 +65,20 @@
 
             <div id="errorBanner" class="error-banner hidden" role="alert" aria-live="assertive"></div>
 
+            <div id="confirmPanel" class="preview-panel hidden" aria-live="polite">
+              <div class="preview-frame">
+                <img id="confirmImg" src="" alt="Detected chapati outline preview" />
+              </div>
+              <div id="candidatePicker" class="candidate-picker hidden">
+                <h3>Pick the contour that is the chapati</h3>
+                <div id="candidateList" class="candidate-list"></div>
+              </div>
+              <div class="confirm-actions">
+                <button id="confirmBtn" class="primary-button" type="button">Looks right</button>
+                <button id="retryConfirmBtn" class="secondary-button" type="button">Try again</button>
+              </div>
+            </div>
+
             <div class="cta-row">
               <button id="analyzeBtn" class="primary-button" type="button" disabled>Analyze My Chapati</button>
             </div>
@@ -150,6 +164,7 @@
       </main>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

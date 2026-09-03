@@ -19,8 +19,8 @@ normalization:
 
 matching:
   primary_method: CONTOURS_MATCH_I1             # CONTOURS_MATCH_I1 | I2 | I3
-  score_formula: exponential                    # exponential | linear_clamped
-  score_k: 5
+  score_formula: distance_clamped               # distance_clamped | relative_rank | exponential | linear_clamped
+  score_k: 0.11
   leaderboard_size: 5
   secondary_metric_enabled: false               # shape_context | hausdorff (future)
 

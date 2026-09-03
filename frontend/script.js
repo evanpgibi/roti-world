@@ -1,42 +1,11 @@
-const API_BASE_URL = "https://roti-world.onrender.com";
+const API_BASE_URL = (window.__APP_CONFIG__ && window.__APP_CONFIG__.apiBaseUrl) || "https://roti-world.onrender.com";
 
 const state = {
   imageUrl: "",
   imageFile: null,
   isAnalyzing: false,
-};
-
-const countryProfiles = [
-  { name: "Italy", flag: "🇮🇹", baseScore: 92 },
-  { name: "Greece", flag: "🇬🇷", baseScore: 88 },
-  { name: "Brazil", flag: "🇧🇷", baseScore: 86 },
-  { name: "India", flag: "🇮🇳", baseScore: 84 },
-  { name: "Japan", flag: "🇯🇵", baseScore: 83 },
-  { name: "Argentina", flag: "🇦🇷", baseScore: 81 },
-  { name: "Mexico", flag: "🇲🇽", baseScore: 80 },
-  { name: "France", flag: "🇫🇷", baseScore: 79 },
-];
-
-const countryFlags = {
-  Italy: "🇮🇹",
-  Greece: "🇬🇷",
-  Brazil: "🇧🇷",
-  India: "🇮🇳",
-  Japan: "🇯🇵",
-  Argentina: "🇦🇷",
-  Mexico: "🇲🇽",
-  France: "🇫🇷",
-  Madagascar: "🇲🇬",
-  "Sri Lanka": "🇱🇰",
-  "Sierra Leone": "🇸🇱",
-  Cyprus: "🇨🇾",
-  Uruguay: "🇺🇾",
-  "United States": "🇺🇸",
-  Germany: "🇩🇪",
-  Spain: "🇪🇸",
-  Portugal: "🇵🇹",
-  "South Korea": "🇰🇷",
-  "United Kingdom": "🇬🇧",
+  analysisResult: null,
+  selectedContour: null,
 };
 
 const fileInput = document.getElementById("fileInput");
@@ -56,16 +25,27 @@ const resultMessage = document.getElementById("resultMessage");
 const runnerUpList = document.getElementById("runnerUpList");
 const tryAnotherBtn = document.getElementById("tryAnotherBtn");
 const errorBanner = document.getElementById("errorBanner");
+const confirmPanel = document.getElementById("confirmPanel");
+const confirmImg = document.getElementById("confirmImg");
+const confirmBtn = document.getElementById("confirmBtn");
+const retryConfirmBtn = document.getElementById("retryConfirmBtn");
+const candidatePicker = document.getElementById("candidatePicker");
+const candidateList = document.getElementById("candidateList");
 
 function clearError() {
-  errorBanner.textContent = "";
-  errorBanner.classList.add("hidden");
+  if (errorBanner) {
+    errorBanner.textContent = "";
+    errorBanner.classList.add("hidden");
+  }
 }
 
 function showError(message) {
-  errorBanner.textContent = message;
-  errorBanner.classList.remove("hidden");
+  if (errorBanner) {
+    errorBanner.textContent = message;
+    errorBanner.classList.remove("hidden");
+  }
   resultSection.classList.add("hidden");
+  if (confirmPanel) confirmPanel.classList.add("hidden");
 }
 
 function setButtonState() {
@@ -78,6 +58,7 @@ function updatePreview(file) {
   state.imageUrl = objectUrl;
   previewImg.src = objectUrl;
   previewPanel.classList.remove("hidden");
+  clearError();
   setButtonState();
 }
 
@@ -88,8 +69,12 @@ function clearPreview() {
 
   state.imageFile = null;
   state.imageUrl = "";
+  state.analysisResult = null;
+  state.selectedContour = null;
   previewImg.src = "";
   previewPanel.classList.add("hidden");
+  if (confirmPanel) confirmPanel.classList.add("hidden");
+  if (candidatePicker) candidatePicker.classList.add("hidden");
   fileInput.value = "";
   clearError();
   setButtonState();
@@ -109,60 +94,33 @@ function handleFiles(files) {
 }
 
 function openFilePicker(captureMode = false) {
-  if (captureMode) {
-    fileInput.setAttribute("capture", "environment");
-  } else {
-    fileInput.removeAttribute("capture");
-  }
-
+  fileInput.setAttribute("capture", captureMode ? "environment" : "");
   fileInput.click();
-}
-
-function calculateProfile(seed) {
-  const safeSeed = (seed || "chapati").toLowerCase();
-  const base = Array.from(safeSeed).reduce((total, char) => total + char.charCodeAt(0), 0);
-
-  return countryProfiles
-    .map((country, index) => {
-      const variance = ((base + index * 13) % 17) - 8;
-      return {
-        ...country,
-        score: Math.max(61, Math.min(98, country.baseScore + variance)),
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-}
-
-function getCountryFlag(countryName) {
-  return countryFlags[countryName] || "🌍";
 }
 
 function renderRunnerUps(items) {
   runnerUpList.innerHTML = items
-    .map(
-      (country) => `
-        <li>
-          <div class="runner-left">
-            <span class="chip">${country.flag || getCountryFlag(country.name || country.country)}</span>
-            <span>${country.name || country.country}</span>
-          </div>
-          <span class="runner-score">${Math.round(country.score)}%</span>
-        </li>
-      `,
-    )
+    .map((country) => `
+      <li>
+        <div class="runner-left">
+          <span class="chip">${country.flag || "🌍"}</span>
+          <span>${country.country || country.name}</span>
+        </div>
+        <span class="runner-score">${Math.round(country.score)}%</span>
+      </li>
+    `)
     .join("");
 }
 
 function renderResultFromApi(matchData, previewImageSrc) {
   const winner = matchData.best_match;
   const runnerUps = (matchData.leaderboard || []).slice(1, 4).map((country) => ({
-    ...country,
-    flag: getCountryFlag(country.country),
-    name: country.country,
+    country: country.country,
     score: country.score,
+    flag: "🌍",
   }));
 
-  resultFlag.textContent = getCountryFlag(winner.country);
+  resultFlag.textContent = "🌍";
   resultCountry.textContent = winner.country;
   resultScore.textContent = `${Math.round(winner.score)}%`;
   resultMessage.textContent = matchData.playful_copy || `Your chapati is giving ${winner.country}.`;
@@ -170,51 +128,52 @@ function renderResultFromApi(matchData, previewImageSrc) {
 
   renderRunnerUps(runnerUps);
   resultSection.classList.remove("hidden");
+  if (confirmPanel) confirmPanel.classList.add("hidden");
   window.scrollTo({
     top: resultSection.offsetTop - 24,
     behavior: "smooth",
   });
 }
 
-function renderResult() {
-  const ranked = calculateProfile(state.imageUrl || "chapati");
-  const winner = ranked[0];
-  const runnerUps = ranked.slice(1, 4);
-
-  resultFlag.textContent = winner.flag;
-  resultCountry.textContent = winner.name;
-  resultScore.textContent = `${Math.round(winner.score)}%`;
-  resultMessage.textContent = `Your chapati is giving ${winner.name}.`;
-  resultPreview.src = state.imageUrl;
-
-  renderRunnerUps(runnerUps);
-  resultSection.classList.remove("hidden");
-  window.scrollTo({
-    top: resultSection.offsetTop - 24,
-    behavior: "smooth",
-  });
+async function fetchWithRetry(url, options = {}, retries = 2) {
+  let attempt = 0;
+  while (attempt <= retries) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const message = payload?.detail?.message || payload?.detail || "Request failed.";
+        if (response.status === 503 || response.status === 504 || attempt < retries) {
+          throw new Error(message);
+        }
+        throw new Error(message);
+      }
+      return response;
+    } catch (error) {
+      if (attempt >= retries) {
+        throw error;
+      }
+      attempt += 1;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  throw new Error("Request failed.");
 }
 
 async function analyzeChapati(file) {
   const formData = new FormData();
   formData.append("image", file);
 
-  const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}/api/analyze`, {
     method: "POST",
     body: formData,
   });
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}));
-    const message = errorPayload?.detail?.message || "Could not analyze this chapati.";
-    throw new Error(message);
-  }
 
   return response.json();
 }
 
 async function matchContour(contour) {
-  const response = await fetch(`${API_BASE_URL}/api/match`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}/api/match`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -222,13 +181,41 @@ async function matchContour(contour) {
     body: JSON.stringify({ contour }),
   });
 
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}));
-    const message = errorPayload?.detail?.message || "Could not match this chapati.";
-    throw new Error(message);
+  return response.json();
+}
+
+function renderCandidatePicker(result) {
+  if (!candidatePicker || !result || !result.multiple_candidates || !result.candidate_contours?.length) {
+    candidatePicker.classList.add("hidden");
+    return;
   }
 
-  return response.json();
+  candidateList.innerHTML = result.candidate_contours
+    .map((candidate, index) => `
+      <button class="candidate-option" data-index="${index}" type="button">
+        Candidate ${index + 1}
+      </button>
+    `)
+    .join("");
+
+  candidatePicker.classList.remove("hidden");
+  candidateList.querySelectorAll(".candidate-option").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedContour = result.candidate_contours[Number(button.dataset.index)];
+      candidateList.querySelectorAll(".candidate-option").forEach((item) => item.classList.remove("selected"));
+      button.classList.add("selected");
+    });
+  });
+
+  state.selectedContour = result.detected_contour || result.candidate_contours[0];
+}
+
+function showConfirmStep(result, overlayImage) {
+  state.analysisResult = result;
+  state.selectedContour = result.detected_contour || result.candidate_contours?.[0] || [];
+  confirmImg.src = overlayImage || state.imageUrl || "";
+  confirmPanel.classList.remove("hidden");
+  renderCandidatePicker(result);
 }
 
 async function runRealAnalysis() {
@@ -242,7 +229,6 @@ async function runRealAnalysis() {
 
   try {
     clearError();
-
     const analyzeResult = await analyzeChapati(state.imageFile);
     const overlayImage = analyzeResult.overlay_image_b64
       ? `data:image/png;base64,${analyzeResult.overlay_image_b64}`
@@ -250,13 +236,12 @@ async function runRealAnalysis() {
 
     previewImg.src = overlayImage;
 
-    const contour = analyzeResult.detected_contour || [];
-    if (!contour.length) {
+    if (!analyzeResult.detected_contour || !analyzeResult.detected_contour.length) {
       throw new Error("No contour was detected in the uploaded chapati image.");
     }
 
-    const matchResult = await matchContour(contour);
-    renderResultFromApi(matchResult, overlayImage);
+    state.analysisResult = analyzeResult;
+    showConfirmStep(analyzeResult, overlayImage);
   } catch (error) {
     const message = error?.message || "Something went wrong while analyzing your chapati.";
     console.error("Chapati analysis failed:", error);
@@ -265,6 +250,21 @@ async function runRealAnalysis() {
     state.isAnalyzing = false;
     analyzeBtn.textContent = "Analyze My Chapati";
     setButtonState();
+  }
+}
+
+async function confirmCurrentContour() {
+  if (!state.selectedContour || !state.selectedContour.length) {
+    showError("Please select a valid chapati contour before matching.");
+    return;
+  }
+
+  try {
+    clearError();
+    const matchResult = await matchContour(state.selectedContour);
+    renderResultFromApi(matchResult, confirmImg.src || state.imageUrl || "");
+  } catch (error) {
+    showError(error?.message || "Could not match the selected chapati contour.");
   }
 }
 
@@ -281,14 +281,17 @@ cameraBtn.addEventListener("click", (event) => {
 clearBtn.addEventListener("click", clearPreview);
 fileInput.addEventListener("change", (event) => handleFiles(event.target.files));
 analyzeBtn.addEventListener("click", runRealAnalysis);
+confirmBtn.addEventListener("click", confirmCurrentContour);
+retryConfirmBtn.addEventListener("click", () => {
+  if (confirmPanel) confirmPanel.classList.add("hidden");
+  previewPanel.classList.remove("hidden");
+  clearError();
+});
 tryAnotherBtn.addEventListener("click", () => {
   resultSection.classList.add("hidden");
   clearError();
   clearPreview();
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 dropzone.addEventListener("dragover", (event) => {
@@ -315,3 +318,5 @@ dropzone.addEventListener("click", (event) => {
 
 setButtonState();
 resultSection.classList.add("hidden");
+if (confirmPanel) confirmPanel.classList.add("hidden");
+if (candidatePicker) candidatePicker.classList.add("hidden");
