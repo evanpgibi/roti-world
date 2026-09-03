@@ -140,7 +140,6 @@ def _geometry_to_contour(geom, strategy: str) -> np.ndarray:
     if strategy == "largest_only":
         poly = max(polygons, key=lambda p: p.area)
         coords = np.array(poly.exterior.coords, dtype=np.float32)
-        coords[:, 1] = -coords[:, 1]   # flip latitude so it matches image y-down convention
     elif strategy == "all_merged":
         # Concatenate all exterior rings with a bridge point between them
         parts = []
@@ -153,6 +152,10 @@ def _geometry_to_contour(geom, strategy: str) -> np.ndarray:
 
     if len(coords) < 3:
         raise ValueError("Too few coordinates after extraction.")
+
+    # GeoJSON is in (lon, lat) with y-up, while cv2 contours are image-style with y-down.
+    # Flip latitude to match the chapati-photo convention used by Hu-moment matching.
+    coords[:, 1] = -coords[:, 1]
 
     # OpenCV contour: shape (N, 1, 2), int32
     # We keep as float for normalization; caller converts when needed
