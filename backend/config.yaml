@@ -1,0 +1,28 @@
+country_data:
+  source: geojson                               # svg | geojson
+  svg_path: ./svgs/intl_wintri.svg
+  geojson_path: ./data/all_primary_countries.geojson
+  polygon_selection_strategy: largest_only      # largest_only | all_merged
+  cache_path: ./cache/country_cache.pkl
+
+image_processing:
+  max_upload_mb: 10
+  blur_kernel: 7
+  threshold_method: otsu                        # otsu | adaptive_gaussian
+  morph_kernel: 5
+  min_contour_area_ratio: 0.02                  # reject if chapati contour < 2% of image area
+  simplify_epsilon_pct: 0.5                     # % of arc length; 0 disables simplification
+  ambiguous_area_margin: 0.1                    # if top-2 contours within 10% area, ask user to confirm
+
+normalization:
+  scale_norm_method: bounding_box_diagonal      # bounding_box_diagonal | sqrt_area | max_radius
+
+matching:
+  primary_method: CONTOURS_MATCH_I1             # CONTOURS_MATCH_I1 | I2 | I3
+  score_formula: exponential                    # exponential | linear_clamped
+  score_k: 5
+  leaderboard_size: 5
+  secondary_metric_enabled: false               # shape_context | hausdorff (future)
+
+copy:
+  templates_path: ./data/result_copy.json
