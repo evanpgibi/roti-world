@@ -1,0 +1,54 @@
+{
+  "buckets": [
+    {
+      "min": 90,
+      "max": 100,
+      "messages": [
+        "Cartographically confirmed. Your chapati IS {country}.",
+        "The cartographers of {country} are shaking.",
+        "This is not a chapati. This is a legal document claiming {country}.",
+        "Your chapati passed the geography exam with {score}% on {country}."
+      ]
+    },
+    {
+      "min": 70,
+      "max": 90,
+      "messages": [
+        "Undeniable. Your chapati strongly resembles {country} at {score}%.",
+        "{country} would like a word with your rolling pin.",
+        "A {score}% match to {country}. You have the hands of a cartographer.",
+        "Your chapati is basically the flag of {country}, just... edible."
+      ]
+    },
+    {
+      "min": 50,
+      "max": 70,
+      "messages": [
+        "Your chapati is {score}% {country}. Coincidence? We think not.",
+        "At {score}%, {country} is feeling flattered by your cooking.",
+        "Reasonably {country}-shaped. {score}% of geographers agree.",
+        "Your chapati: a delicious tribute to {country}."
+      ]
+    },
+    {
+      "min": 30,
+      "max": 50,
+      "messages": [
+        "A {score}% resemblance to {country}. Your chapati has ambitions.",
+        "{country} sees itself in your chapati, distantly, at {score}%.",
+        "Squint hard. That's totally {country} at {score}%.",
+        "Your chapati is diplomatically {score}% {country}."
+      ]
+    },
+    {
+      "min": 0,
+      "max": 30,
+      "messages": [
+        "Your chapati defies national borders. Closest we got: {country} at {score}%.",
+        "{score}% {country}? Your chapati is forging its own nation.",
+        "Even {country} at {score}% is a stretch. Your chapati is unprecedented.",
+        "Technically {country} at {score}%, but your chapati is truly in a class of its own."
+      ]
+    }
+  ]
+}
