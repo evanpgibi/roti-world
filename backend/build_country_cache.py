@@ -140,6 +140,7 @@ def _geometry_to_contour(geom, strategy: str) -> np.ndarray:
     if strategy == "largest_only":
         poly = max(polygons, key=lambda p: p.area)
         coords = np.array(poly.exterior.coords, dtype=np.float32)
+        coords[:, 1] = -coords[:, 1]   # flip latitude so it matches image y-down convention
     elif strategy == "all_merged":
         # Concatenate all exterior rings with a bridge point between them
         parts = []
